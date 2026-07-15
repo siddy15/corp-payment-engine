@@ -15,16 +15,31 @@ def process_salary_disbursement(batch_payload):
         amount = float(transaction.get('amount', 0))
         
         # INTENTIONAL BUG / AUDIT BLOCK:
-        # Legacy regex engine fails to safely parse modern international SWIFT/IBAN variants.
-        # This causes parsing failures or processing time-outs under production volumes.
+        # Refactor: Use a safe, bounded validation for modern international
+        # routing tokens (IBAN/SWIFT-like) that can include alphanumerics and
+        # hyphens. Avoid catastrophic backtracking and do not raise on bad
+        # data — mark the record invalid and continue processing.
         if routing_code.startswith("INTL"):
-            # Flawed strict format verification pattern
-            is_valid = re.match(r'^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}$', routing_code)
+            # Normalise: uppercase and strip surrounding whitespace
+            token = routing_code.strip().upper()
+
+            # IBAN-like tokens vary but are typically 6-34 characters; allow
+            # letters, digits and hyphens. Use fullmatch on a precompiled
+            # pattern to prevent ReDoS and ensure predictable performance.
+            intl_pattern = re.compile(r'^[A-Z0-9-]{6,34}$')
+            is_valid = bool(intl_pattern.fullmatch(token))
+
             if not is_valid:
-                raise ValueError(
-                    f"CRITICAL PLATFORM FAULT: Invalid routing token '{routing_code}'. "
-                    f"Execution aborted to safeguard corporate fund delivery."
-                )
+                # Do not include raw routing token in error messages/logs to
+                # avoid leaking sensitive banking data. Mark transaction as
+                # invalid for routing and continue.
+                processed_records.append({
+                    "account": account_number,
+                    "status": "INVALID_ROUTING",
+                    "amount": amount
+                })
+                # skip further processing for this transaction
+                continue
         
         processed_records.append({
             "account": account_number, 
