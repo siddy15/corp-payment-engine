@@ -1,0 +1,41 @@
+name: Corp Banking Payout Verification
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  compliance-and-testing:
+    name: Transaction Engine Verification Execution
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Secure Checkout of FIN Codebase
+      uses: actions/checkout@v4
+
+    - name: Initialize Protected Runtime Environment (Python 3.11)
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Load Isolated Core Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+
+    - name: Run Automated Payout Integrity Test Suite
+      run: |
+        python -m pytest test_disbursement.py
+
+    - name: Emit Native Performance & Observability Telemetry
+      if: always()
+      run: |
+        echo "### FIN Automated Pipeline Telemetry" >> $GITHUB_STEP_SUMMARY
+        echo "* **Job Execution Status:** ${{ job.status }} " >> $GITHUB_STEP_SUMMARY
+        echo "* **Workflow Actor:** \`@${{ github.actor }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "* **Target Execution Context:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "* **Trigger Mechanism:** Native GitHub Event (Pull Request Trace)" >> $GITHUB_STEP_SUMMARY
