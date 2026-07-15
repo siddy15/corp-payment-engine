@@ -18,7 +18,7 @@ def test_international_disbursement_edge_case():
     Triggers the strict legacy validation exception pattern.
     """
     mock_payload = [{
-        "routing_code": "INTL-LONDON-SWIFT-99X", 
+        "routing_code": "INTLLONDON-SWIFT-99X", 
         "account_number": "0987654321", 
         "amount": "1250000.00"
     }]
